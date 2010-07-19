@@ -44,39 +44,40 @@ var Carousel = this.Carousel = new Class({
 			mode: 'horizontal',
 			animation: 'Move',
 			scroll: 4,
+            distance: 1,
+            previous: '',
+            next: '',
 			fx: {
 			
 				link: 'cancel',
 				transition: 'sine:out',
 				duration: 500
-			}
+			},
 		},
+
 		plugins: {},
+
 		initialize: function (options) {
-		
+        
 			this.addEvent('change', function (current) {
 			
 				this.current = current
 				
 			}.bind(this)).setOptions(options);
-			
-			$each({left: 'previous', right: 'next'}, function (val, key) {
-				
-				if(this.options[key]) $(this.options[key]).addEvent('click', function (e) {
-				
-					e.stop();
-					this[val]()
-					
-				}.bind(this))
-				
-			}, this);
-			
-			this.elements = $(options.container).getChildren(options.selector);
-			
+        
+            this.setOptions(options);
+
+			this.elements = $(this.options.container).getChildren(this.options.selector);
 			this.current = 0;
 			this.anim = new this.plugins[this.options.animation](this);
 			
 			this.move(this.options.current || 0);
+            
+            this.boundPrevious = function(){this.previous();}.bind(this);
+            this.boundNext = function(){this.next();}.bind(this);
+            
+            if(this.options.previous) $(this.options.previous).addEvent('click', this.boundPrevious);
+            if(this.options.next) $(this.options.next).addEvent('click', this.boundNext);
 		},
 		
 		isVisible: function (index) {
@@ -104,24 +105,21 @@ var Carousel = this.Carousel = new Class({
 		
 		previous: function (direction) {
 	
-			return this.move(this.current - this.options.scroll, direction)
+			return this.move(this.current - this.options.distance, direction)
 		},
 		
 		next: function (direction) {
 		
-			return this.move(this.current + this.options.scroll, direction)
+			return this.move(this.current + this.options.distance, direction)
 		},
-		
+
 		move: function (index, direction) {
-		
 			var elements = this.elements,
 				current = this.current,
 				length = elements.length,
 				scroll = this.options.scroll;
-			
+                
 			if($type($(index)) == 'element') index = elements.indexOf($(index));
-			
-			if(this.isVisible(index)) return this;
 			
 			if(!this.options.circular) {
 		
@@ -132,6 +130,7 @@ var Carousel = this.Carousel = new Class({
 			
 				if(index < 0) index += length
 				index %= Math.max(length, 1);
+
 			}			
 		
 			if(index < 0 || length <= scroll || index >= length) return this;
@@ -164,11 +163,23 @@ var Carousel = this.Carousel = new Class({
 				}),
 				parent = elements[0].getParent(),
 				pos = parent.setStyles({height: parent.offsetHeight, position: 'relative', overflow: 'hidden'}).getStyle('padding' + (this.up ? 'Top' : 'Left'));
-				
+                
 				this.property = 'offset' + (up ? 'Top' : 'Left');
 				this.margin = 'margin' + (up ? 'Top' : 'Left');
 			
 			this.reorder(0, 1).fx = new Fx.Elements(elements, options.fx)
+
+            this.fx.addEvent('start', 
+                function(){ 
+                    if(carousel.options.previous) $(carousel.options.previous).removeEvent('click', carousel.boundPrevious);
+                    if(carousel.options.next) $(carousel.options.next).removeEvent('click', carousel.boundNext);
+                });
+            this.fx.addEvent('complete', 
+                function(){ 
+                    if(carousel.options.previous) $(carousel.options.previous).addEvent('click', carousel.boundPrevious);
+                    if(carousel.options.next) $(carousel.options.next).addEvent('click', carousel.boundNext);
+                });
+
 		},
 		
 		reorder: function (offset, direction) {
